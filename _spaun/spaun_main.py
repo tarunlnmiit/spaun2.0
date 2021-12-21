@@ -6,7 +6,7 @@ from .configurator import cfg
 from .vocabulator import vocab
 from .loggerator import logger
 from .modules import Stimulus, Vision, ProdSys, RewardEval, InfoEnc
-from .modules import TrfmSys, Memory, Monitor, InfoDec, Motor
+from .modules import TrfmSys, Memory, Monitor, InfoDec#, Motor
 from .modules import InstrStimulus, InstrProcess
 
 # #### DEBUG DUMMY NETWORK IMPORTS ####
@@ -42,8 +42,8 @@ def Spaun():
             model.trfm = TrfmSys()
         if 'D' in cfg.spaun_modules:
             model.dec = InfoDec()
-        if 'M' in cfg.spaun_modules:
-            model.mtr = Motor()
+        # if 'M' in cfg.spaun_modules:
+        #     model.mtr = Motor()
         if 'I' in cfg.spaun_modules:
             model.instr = InstrProcess()
 

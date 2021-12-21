@@ -6,7 +6,6 @@ import numpy.ma as ma
 import argparse
 import matplotlib.pyplot as plt
 
-
 # --------------------- DISP_PROBE_DATA CODE DEFAULTS ---------------------
 supported_data_version = 6.1
 default_filename = ''
@@ -78,7 +77,7 @@ else:
                        data_filename)
 
 # --------------------- LOAD MODEL & PROBE CONFIG DATA ---------------------
-config_data = np.load(config_filename, encoding='latin1')
+config_data = np.load(config_filename, encoding='latin1', allow_pickle=True)
 
 data_version = 0 if 'version' not in config_data.keys() else \
     config_data['version'].item()
@@ -237,7 +236,7 @@ if show_grphs:
                 # Note: Limit number of plots to max_lines to limit memory
                 #       usage
 
-                plt.gca().set_color_cycle([colormap(i) for i in
+                plt.cm.Spectral([colormap(i) for i in
                                            np.linspace(0, 0.9, num_classes)])
                 for i in range(num_classes):
                     plt.plot(t_data,
@@ -248,7 +247,7 @@ if show_grphs:
                 # vector without vocabulary plots
                 num_dims = p_data[-1].size
                 if num_dims < 30:
-                    plt.gca().set_color_cycle([colormap(i) for i in
+                    plt.cm.Spectral([colormap(i) for i in
                                                np.linspace(0, 0.9,
                                                            num_dims)])
                     for i in range(num_dims):
