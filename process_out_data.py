@@ -3,7 +3,7 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from warnings import warn
-from collections import OrderedDict as OD
+from collections import OrderedDict as OD, Set
 
 from _spaun.utils import conf_interval
 
@@ -140,7 +140,7 @@ def process_line(task_str, task_data_str):
             task_str = 'INVALID'
             warn('A5: No valid P/K for QA task')
     elif task_str == 'A6':
-        from sets import Set
+        # from sets import Set
         # RVC task
         if len(task_info_split) % 2:
             match_list = None
@@ -237,9 +237,9 @@ def process_line(task_str, task_data_str):
         task_answer[:task_answer_len] = task_answer_spaun[:task_answer_len]
 
         # DEBUG
-        # print task_data_str, task_answer, task_answer_ref
+        # print(task_data_str, task_answer, task_answer_ref)
     else:
-        print task_data_str
+        print(task_data_str)
 
     if task_str in ['A0', 'A1', 'A3']:
         # For memory, recognition, copy drawing tasks, check recall accuracy
@@ -276,8 +276,8 @@ if args.tag is not None or len(args.s) > 0:
     else:
         t_list = list(args.tag)
 
-print args.s == '', args.tag
-print s_list, t_list
+print(args.s == '', args.tag)
+print(s_list, t_list)
 
 if len(s_list) != len(t_list):
     raise RuntimeError("-s and --tag options need to have the same length")
@@ -287,7 +287,7 @@ processed_results = OD()
 probe_dir = args.data_dir
 
 for stim_str, tag_str in zip(s_list, t_list):
-    print "OPTION: %s, %s" % (stim_str, tag_str)
+    print("OPTION: %s, %s" % (stim_str, tag_str))
 
     str_prefix = '+'.join([args.p, args.n])
     if stim_str is not None and len(stim_str) > 0:
@@ -303,7 +303,7 @@ for stim_str, tag_str in zip(s_list, t_list):
     for filename in os.listdir(probe_dir):
         if filename[-len(str_suffix):] == str_suffix and \
            filename[:len(str_prefix)] == str_prefix and not args.r:
-            print "PROCESSING: " + os.path.join(probe_dir, filename)
+            print("PROCESSING: " + os.path.join(probe_dir, filename))
             probe_file = open(os.path.join(probe_dir, filename), 'r')
             for line in probe_file.readlines():
                 if line[0] not in ['#', '>'] and line.strip() != '':
@@ -373,9 +373,9 @@ if not args.r:
 
 # DEBUG
 # for key in processed_results:
-#     print ">>>>> %s <<<<<" % key
+#     print(">>>>> %s <<<<<" % key)
 #     for d in processed_results[key]:
-#         print d
+#         print(d)
 
 # Compute CI and plot data
 ci_data_filepath = output_filepath[:-4] + '_ci.npz'
@@ -394,14 +394,13 @@ else:
     ci_data = dict(np.load(ci_data_filepath, encoding='latin1'))
 
 # Print CI data
-print "CI Data: ", ci_data
+print("CI Data: ", ci_data)
 
 # Print task run data
-print "Number of tasks: ", num_tasks
-print "Number of null responses: ", num_null_responses
+print("Number of tasks: ", num_tasks)
+print("Number of null responses: ", num_null_responses)
 if num_tasks > 0:
-    print "Percentage of null responses: ", (1.0 * num_null_responses /
-                                             num_tasks)
+    print("Percentage of null responses: ", 1.0 * num_null_responses /num_tasks)
 
 plt.figure(1, figsize=(18, 9))
 legend_list = []
