@@ -7,6 +7,7 @@ from arguments import *
 # ----- Nengo RC Cache settings -----
 # Disable cache unless seed is set (i.e. seed > 0) or if the '--enable_cache'
 # option is given
+# RC = Resistor-Capacitor TODO: Not sure?
 if args.seed > 0 or args.enable_cache:
     print("USING CACHE")
     nengo.rc.set("decoder_cache", "enabled", "True")
@@ -15,7 +16,8 @@ else:
     nengo.rc.set("decoder_cache", "enabled", "False")
 
 # ----- Backend Configurations -----
-cfg.backend = args.b
+# cfg = Spaun Configurator class by the name SpaunConfig
+cfg.backend = args.b  # default backend is nengo reference simulator | Use ocl with GPU systems
 if args.ocl:
     cfg.backend = 'ocl'
 if args.mpi:
@@ -33,6 +35,7 @@ else:
     instr_seq_str = args.i
 
 # ----- Gather configuration (from --config and --config_presets) settings ----
+# Probably won't be using this argument ????
 config_list = []
 if args.config is not None:
     config_list += args.config
@@ -85,7 +88,7 @@ for n in range(args.n):
 
     # ----- Enable debug logging -----
     if args.debug:
-        nengo.log('debug')
+        logging.debug('debug')
 
     # ----- Experiment and vocabulary initialization -----
     experiment.initialize(stim_seq_str, stim_data.get_image_ind,
@@ -103,9 +106,8 @@ for n in range(args.n):
         arg_modules = args.modules.upper()
 
         if arg_modules[0] == '-':
-            used_modules = \
-                ''.join([s if s not in arg_modules else ''
-                         for s in used_modules])
+            used_modules = ''.join([s if s not in arg_modules else ''
+                                    for s in used_modules])
         else:
             used_modules = arg_modules
 

@@ -23,7 +23,7 @@ def mnist(filepath=''):
 def load_image_data(filename, filepath=''):
     import os
     import gzip
-    import cPickle as pickle
+    import pickle
 
     with gzip.open(os.path.join(filepath, filename), 'rb') as f:
         train, valid, test = pickle.load(f)
