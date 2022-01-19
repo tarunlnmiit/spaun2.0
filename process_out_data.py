@@ -115,6 +115,7 @@ def process_line(task_str, task_data_str):
             task_answer_ref = task_info[-1::-1]
         else:
             task_answer_ref = task_info
+        print('task_answer_ref', task_answer_ref)
     elif task_str == 'A4':
         # For counting tasks
         start_num = int(task_info_split[0])
@@ -129,7 +130,7 @@ def process_line(task_str, task_data_str):
         task_answer_ref = np.array([str(ans_num)])
     elif task_str == 'A5':
         # QA task
-        num_list = map(int, list(task_info_split[0]))
+        num_list = list(map(int, list(task_info_split[0])))
         probe_num = int(task_info_split[1])
 
         if has_P:
@@ -144,11 +145,11 @@ def process_line(task_str, task_data_str):
         # RVC task
         if len(task_info_split) % 2:
             match_list = None
-            for i in range(len(task_info_split) / 2):
+            for i in range(len(task_info_split) // 2):
                 list1 = np.array(list(task_info_split[i * 2]))
                 list2 = np.array(list(task_info_split[i * 2 + 1]))
                 if match_list is None:
-                    match_list = [Set(np.where(list1 == item)[0])
+                    match_list = [set(np.where(list1 == item)[0])
                                   for item in list2]
                 else:
                     # TODO: Check for inconsistencies across pairs
@@ -157,7 +158,7 @@ def process_line(task_str, task_data_str):
                         task_str = 'INVALID'
                     else:
                         match_list = [match_list[j] &
-                                      Set(np.where(list1 == list2[j])[0])
+                                      set(np.where(list1 == list2[j])[0])
                                       for j in range(len(match_list))]
             list1 = np.array(list(task_info_split[-1]))
             task_answer_ref = np.array([list1[list(set_list)[0]]
@@ -178,8 +179,8 @@ def process_line(task_str, task_data_str):
             if col_count % 3 == 0:
                 col_count += 1
                 continue
-            list1 = map(int, np.array(list(task_info_split[i - 1])))
-            list2 = map(int, np.array(list(task_info_split[i])))
+            list1 = list(map(int, np.array(list(task_info_split[i - 1]))))
+            list2 = list(map(int, np.array(list(task_info_split[i]))))
 
             # Handle the following cases:
             # 1. Unchanging list lengths of len 1
@@ -210,7 +211,7 @@ def process_line(task_str, task_data_str):
         def spaun_response_to_int(c):
             return int(c) if c.isdigit() else -1
 
-        list1 = map(spaun_response_to_int, list(task_info_split[-1]))
+        list1 = list(map(spaun_response_to_int, list(task_info_split[-1])))
         if induction_diff is not None and induction_len_change is None and \
            induction_identity is None:
             task_answer_ref = np.array(map(str, [list1[0] + induction_diff]))
@@ -232,6 +233,7 @@ def process_line(task_str, task_data_str):
 
     if task_str in ['A0', 'A1', 'A3', 'A4', 'A5', 'A6', 'A7']:
         task_answer = np.chararray(task_answer_ref.shape)
+        print('task_answer', task_answer)
         task_answer[:] = ''
         task_answer_len = min(len(task_answer_ref), len(task_answer_spaun))
         task_answer[:task_answer_len] = task_answer_spaun[:task_answer_len]
@@ -245,7 +247,7 @@ def process_line(task_str, task_data_str):
         # For memory, recognition, copy drawing tasks, check recall accuracy
         # per item
         return ('_'.join([task_str, str(len(task_answer_ref))]),
-                map(int, task_answer == task_answer_ref))
+                map(int, str(task_answer) == task_answer_ref))
 
     if task_str in ['A4', 'A5', 'A6', 'A7']:
         # For other non-learning tasks, check accuracy as wholesale correct /
@@ -307,11 +309,14 @@ for stim_str, tag_str in zip(s_list, t_list):
             probe_file = open(os.path.join(probe_dir, filename), 'r')
             for line in probe_file.readlines():
                 if line[0] not in ['#', '>'] and line.strip() != '':
+                    print(line)
                     task_info_split = line.split('[', 1)
                     task_str = task_info_split[0].strip()
                     task_data = task_info_split[1].strip()
 
+                    print('task_str, task_data', task_str, task_data)
                     task_str, task_result = process_line(task_str, task_data)
+                    print('task_str, task_result', task_str, task_result)
 
                     if task_str is not None:
                         if tag_str is None:
@@ -349,7 +354,7 @@ else:
 
 output_filepath = os.path.join(probe_dir, output_file)
 if args.a or args.r:
-    old_result_data = np.load(output_filepath, encoding='latin1')
+    old_result_data = np.load(output_filepath, encoding='latin1', allow_pickle=True)
     old_results = dict(old_result_data)
 
     for key in processed_results:
@@ -404,7 +409,7 @@ if num_tasks > 0:
 
 plt.figure(1, figsize=(18, 9))
 legend_list = []
-max_x = 0
+max_x = 0.5
 plot_jitter = 0.05
 num_plots = len(ci_data.keys())
 
