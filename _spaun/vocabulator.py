@@ -97,6 +97,12 @@ class SpaunVocabulary(object):
         logger.write('\n')
 
     def initialize(self, stim_SP_labels, num_learn_actions=3, rng=0):
+        """
+        :param stim_SP_labels: label symbols for spaun vocab or control characters
+        :param num_learn_actions: Number of learning options
+        :param rng: Store a slow Mersenne Twister pseudo-random number
+        :return:
+        """
         if rng == 0:
             rng = np.random.RandomState(int(time.time()))
 

@@ -12,6 +12,7 @@ def LIFVision(vis_data, stim_data, net=None, net_neuron_type=None):
 
     with net:
         # --- LIF vision network proper
+        # stim_data.images_data_dimensions = 784 (28*28)
         input_node = nengo.Node(size_in=stim_data.images_data_dimensions,
                                 label='Input')
         input_bias = nengo.Node(output=[1] * stim_data.images_data_dimensions)

@@ -3,7 +3,7 @@ stim_presets = {}
 
 # Standard Spaun stimulus presets
 # TODO: Add in configuration options into presets as well?
-stim_presets['copy_draw'] = ('A0[#1]?X', '')
+stim_presets['copy_draw'] = ('A0[5]?X', '')
 stim_presets['copy_draw_mult'] = ('A0[#1#2#3]?XXX', '')
 stim_presets['digit_recog'] = ('A1[#1]?XXX', '')
 stim_presets['learning'] = ('A2?{X:30}', '')

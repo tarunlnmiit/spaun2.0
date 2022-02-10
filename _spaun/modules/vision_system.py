@@ -21,6 +21,8 @@ class VisionSystem(Module):
         super(VisionSystem, self).__init__(label, seed, add_to_container)
         if vis_net_cfg is None:
             vis_net_cfg = vis_data
+        # Here the following arguments are passed as by default:
+        # None None <_spaun.modules.vision.lif_vision.data.LIFVisionDataObject> None
         self.init_module(vis_net, detect_net, vis_net_cfg, vis_net_neuron_type)
 
     @with_self

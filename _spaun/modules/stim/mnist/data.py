@@ -16,6 +16,7 @@ class MNISTDataObject(object):
             self.filepath = data_filepath
 
         # --- Mnist data ---
+        # The read_file method returns train, valid, test sets respectively
         _, _, [images_data, images_labels] = \
             mnist.read_file('mnist.pkl.gz', self.filepath)
         images_labels = list(map(str, images_labels))
@@ -37,13 +38,14 @@ class MNISTDataObject(object):
         images_labels = images_labels[sorted_labels]
 
         self.images_data_mean = images_data.mean(axis=0, keepdims=True)
-        self.images_data_std = 1.0 / np.maximum(images_data.std(axis=0,
-                                                                keepdims=True),
-                                                3e-1)
+        self.images_data_std = 1.0 / np.maximum(images_data.std(axis=0, keepdims=True), 3e-1)
 
         self.images_data_dimensions = images_data[0].shape[0]
         self.images_labels_inds = []
         self.images_labels_unique = np.unique(images_labels)
+
+        # Finding & storing range of images corresponding to labels in the sorted data;
+        # the bisect methods help achieve it
         for lbl in self.images_labels_unique:
             self.images_labels_inds.append(range(bs.bisect_left(images_labels,
                                                                 lbl),
@@ -88,22 +90,31 @@ class MNISTDataObject(object):
 
         if isinstance(label, int):
             # Case when 'label' given is really just the image index number
-            return (self.images_data[label], label)
+            return self.images_data[label], label
         elif label is None:
             # Case where you need just a blank image
-            return (np.zeros(self.images_data_dimensions), -1)
+            return np.zeros(self.images_data_dimensions), -1
         else:
             # All other cases (usually label is a str)
             image_ind = self.get_image_ind(label, rng)
-            return (self.images_data[image_ind], image_ind)
+            return self.images_data[image_ind], image_ind
 
     def get_image_label(self, index):
+        """
+        :param index: A fixed index for a couple of darpa based stimulus presets
+        :return: Class label of the image index in the dataset or -1 if not found
+        """
         for label, indicies in enumerate(self.images_labels_inds):
             if index in indicies:
                 return self.stim_SP_labels_full[label]
         return -1
 
     def get_image_ind(self, label, rng):
+        """
+        :param label: Class label
+        :param rng: Store a slow Mersenne Twister pseudo-random number in Instance variable rng
+        :return: A randomly chosen image index from the test set of the data associated with the class label
+        """
         label_ind = np.where(self.images_labels_unique == label)
         if label_ind[0].shape[0] > 0:
             image_ind = rng.choice(

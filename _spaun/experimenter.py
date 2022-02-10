@@ -4,17 +4,19 @@ from collections import OrderedDict
 from .loggerator import logger
 
 
+# TODO: Understanding the meanings of the class variables
+
 class SpaunExperiment(object):
     def __init__(self):
         self.num_map = {'0': 'ZER', '1': 'ONE', '2': 'TWO', '3': 'THR',
                         '4': 'FOR', '5': 'FIV', '6': 'SIX', '7': 'SEV',
                         '8': 'EIG', '9': 'NIN'}
-        self.num_rev_map = {}
+        self.num_rev_map = {}  # Reverse mapping variable of above mapping
         for key in self.num_map.keys():
             self.num_rev_map[self.num_map[key]] = key
 
         self.sym_map = {'[': 'OPEN', ']': 'CLOSE', '?': 'QM'}
-        self.sym_rev_map = {}
+        self.sym_rev_map = {}  # Reverse mapping variable of above mapping
         for key in self.sym_map.keys():
             self.sym_rev_map[self.sym_map[key]] = key
 
@@ -69,6 +71,10 @@ class SpaunExperiment(object):
         logger.write('#\n')
 
     def parse_mult_seq(self, seq_str):
+        """
+        :param seq_str: Raw Sequence stimulus multifold Eg: RPM task or darpa based tasks
+        :return: Parsed sequence string
+        """
         mult_open_ind = seq_str.find('{')
         mult_close_ind = seq_str.find('}')
         mult_value_ind = seq_str.find(':')
@@ -88,6 +94,10 @@ class SpaunExperiment(object):
             raise ValueError('Invalid multiplicative indicator format.')
 
     def parse_custom_tasks(self, seq_str):
+        """
+        :param seq_str: Raw sequence string for all custom SPAUN tasks
+        :return: modified task string, task learning options related to number of trials, and number of learning options
+        """
         task_open_ind = seq_str.find('(')
         task_close_ind = -1
         rslt_str = ""
@@ -252,6 +262,11 @@ class SpaunExperiment(object):
                 num_learn_actions)
 
     def parse_instruction_str(self, instr_str):
+        """
+        :param instr_str: Raw instruction string spaces removed
+        :return: If non-empty input then return dictionary version of instructions
+        otherwise return the input
+        """
         instr_dict = OrderedDict()
 
         if len(instr_str) <= 0:
@@ -299,14 +314,30 @@ class SpaunExperiment(object):
     def parse_raw_seq(self, raw_seq_str, get_image_ind, get_image_label,
                       present_blanks, mtr_est_digit_response_time,
                       instruction_str, rng):
+        """
+        :param raw_seq_str: Raw stimulus sequence string spaces removed
+        :param get_image_ind: A method to get a randomly chosen image index from the
+        test set of the data associated with the class label which is a parameter of
+        the method along with rng
+        :param get_image_label: A method to get the Class label of the image index
+        in the dataset or -1 if not found
+        :param present_blanks: Class variable with default value False
+        :param mtr_est_digit_response_time: Probably Estimation of time taken
+        by the motor arm to respond
+        :param instruction_str: Raw Instruction String spaces removed
+        :param rng: Store a slow Mersenne Twister pseudo-random number
+        :return: Raw sequence list, stimulus sequence list, Task phase sequence list,
+        instruction sp list, instruction ordereddict??, instruction change dict??,
+        number of learning options
+        """
         (raw_seq, learn_task_options, num_learn_actions) = \
             self.parse_custom_tasks(self.parse_mult_seq(raw_seq_str))
 
         instr_dict = self.parse_instruction_str(instruction_str)
 
         hw_class = False  # Flag to indicate to use a hand written number
-        fixed_num = False
-        is_instr = False
+        fixed_num = False  # Flag to indicate a fixed image in stimulus
+        is_instr = False  # Flag to indicate if there is some instruction provided
 
         raw_seq_list = []
         stim_seq_list = []
@@ -333,7 +364,7 @@ class SpaunExperiment(object):
 
             # Process hardwired class descriptor tag (# ...)
             if hw_class:
-                if (not self.is_valid_class_char(c) and len(class_c) <= 0):
+                if not self.is_valid_class_char(c) and len(class_c) <= 0:
                     raise ValueError('Malformed class number string.')
                 elif self.is_valid_class_char(c):
                     class_c += c
@@ -384,6 +415,7 @@ class SpaunExperiment(object):
                 continue
 
             # Process non-tagged characters
+            # TODO Understand Preset non-tagged characters properly
             if not (hw_class or fixed_num or is_instr):
                 if c == 'N':
                     num_n += 1
@@ -459,8 +491,7 @@ class SpaunExperiment(object):
 
             # If previous character is identical to current character, insert a
             # space between them.
-            if (c is not None and prev_c == c and not present_blanks) or \
-               c == '.':
+            if (c is not None and prev_c == c and not present_blanks) or c == '.':
                 stim_seq_list.append(None)
                 instr_seq_list.append(instr_c)
                 if c == '.':
@@ -479,6 +510,7 @@ class SpaunExperiment(object):
                 self.add_present_blanks(stim_seq_list, instr_seq_list)
 
         # Generate task phase sequence list
+        # TODO what is it?
         task_phase_seq_list = []
 
         task = ''
@@ -655,6 +687,19 @@ class SpaunExperiment(object):
 
     def initialize(self, raw_seq_str, get_image_ind, get_image_label,
                    mtr_est_digit_response_time, instruction_str, rng):
+        """
+        :param raw_seq_str: Raw stimulus sequence string
+        :param get_image_ind: A method to get a randomly chosen image index from the
+        test set of the data associated with the class label which is a parameter of
+        the method along with rng
+        :param get_image_label: A method to get the Class label of the image index
+        in the dataset or -1 if not found
+        :param mtr_est_digit_response_time: (TODO) Probably Estimation of time taken
+        by the motor arm to respond
+        :param instruction_str: Raw Instruction String
+        :param rng: Store a slow Mersenne Twister pseudo-random number
+        :return: Nothing but sets quite a few class variables
+        """
         self.raw_seq_str = raw_seq_str.replace(' ', '')
         self.raw_instr_str = instruction_str.replace(' ', '')
 

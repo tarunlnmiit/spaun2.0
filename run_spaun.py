@@ -26,6 +26,7 @@ if args.spinn:
     cfg.backend = 'spinn'
 
 print("BACKEND: %s" % cfg.backend.upper())
+print("STIM MODULE: %s" % cfg.stim_module.upper())
 
 # ----- Stimulus sequence settings -----
 if args.stim_preset in stim_presets:
