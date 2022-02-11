@@ -25,6 +25,7 @@ class InstructionProcessingSystem(Module):
                  add_to_container=None):
         super(InstructionProcessingSystem, self).__init__(label, seed,
                                                           add_to_container)
+        self.n_neurons_instr = cfg.tg_n_neurons_instr
         self.init_module()
 
     @with_self
@@ -51,7 +52,7 @@ class InstructionProcessingSystem(Module):
         # ----------- INSTRUCTION SP INPUT + SEMI NORMALIZATION ---------------
         instr_ea_subdim = min(16, vocab.sp_dim)
         self.instr_ea = cfg.make_ens_array(
-            n_neurons=cfg.n_neurons_ens * instr_ea_subdim,
+            n_neurons=self.n_neurons_instr * instr_ea_subdim,
             n_ensembles=vocab.sp_dim // instr_ea_subdim,
             ens_dimensions=instr_ea_subdim,
             radius=cfg.get_optimal_sp_radius(vocab.sp_dim, instr_ea_subdim))
@@ -59,7 +60,7 @@ class InstructionProcessingSystem(Module):
 
         # ------------- INSTRUCTION INPUT CLEANUP NETWORKS --------------------
         # Associative memory for visual information
-        vis_am = cfg.make_assoc_mem(vocab.vis_main.vectors)
+        vis_am = cfg.make_assoc_mem(vocab.vis_main.vectors, n_neurons=self.n_neurons_instr)
         nengo.Connection(self.vis_input, vis_am.input)
 
         # Ignore some visual inputs
@@ -69,16 +70,16 @@ class InstructionProcessingSystem(Module):
 
         # Associative memory for task information
         task_am = cfg.make_assoc_mem(vocab.ps_task.vectors,
-                                     wta_inhibit_scale=None)
+                                     wta_inhibit_scale=None, n_neurons=self.n_neurons_instr)
         nengo.Connection(self.task_input, task_am.input)
 
         # Associative memory for state information
-        state_am = cfg.make_assoc_mem(vocab.ps_state.vectors)
+        state_am = cfg.make_assoc_mem(vocab.ps_state.vectors, n_neurons=self.n_neurons_instr)
         nengo.Connection(self.state_input, state_am.input)
 
         # ------------ INSTRUCTION POSITION CIRCONV NETWORK -------------------
         instr_pos_cconv = cfg.make_cir_conv(
-            invert_b=True, input_magnitude=cfg.instr_cconv_radius)
+            invert_b=True, input_magnitude=cfg.instr_cconv_radius, n_neurons=self.n_neurons_instr*3)
         cfg.make_inhibitable(instr_pos_cconv, inhib_scale=5)
         # instr_pos_cconv = nengo.Network()
         # with instr_pos_cconv as net:
@@ -124,20 +125,20 @@ class InstructionProcessingSystem(Module):
         #       3. Second instruction ...
         self.pos_inc = Set_Pos_Inc_Net(vocab.pos, vocab.main.parse('0').v,
                                        vocab.inc_sp, vocab.item_1_index,
-                                       threshold_gate_in=True)
+                                       threshold_gate_in=True, n_neurons=self.n_neurons_instr)
         nengo.Connection(
             self.pos_inc.output, instr_pos_cconv.B,
             transform=instr_voc.parse('1').get_convolution_matrix()[antT])
 
-        self.pos_inc_reset = cfg.make_thresh_ens_net()
+        self.pos_inc_reset = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_instr)
         nengo.Connection(self.pos_inc_reset.output, self.pos_inc.reset)
 
-        self.pos_inc_init = cfg.make_thresh_ens_net()
+        self.pos_inc_init = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_instr)
         nengo.Connection(self.pos_inc_init.output, self.pos_inc.gate)
 
         # Only enable the pos_inc num_2_pos am in pos_inc_init state. This is
         # to ignore other non-init number inputs to the system
-        self.pos_inc_inhibit = cfg.make_thresh_ens_net()
+        self.pos_inc_inhibit = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_instr)
         nengo.Connection(bias_node, self.pos_inc_inhibit.input)
         nengo.Connection(self.pos_inc_init.output, self.pos_inc_inhibit.input,
                          transform=-1)
@@ -145,11 +146,11 @@ class InstructionProcessingSystem(Module):
 
         # ----------- INSTRUCTION POSITION CLEANUP NETWORK --------------------
         pos_am = cfg.make_assoc_mem(vocab.pos.vectors, threshold=0.35,
-                                    wta_inhibit_scale=1.1)
+                                    wta_inhibit_scale=1.1, n_neurons=self.n_neurons_instr)
         nengo.Connection(instr_pos_cconv.output, pos_am.input, synapse=0.01)
 
         # Signal when no position is chosen from the pos AM
-        no_pos_chosen = cfg.make_thresh_ens_net(0.5)
+        no_pos_chosen = cfg.make_thresh_ens_net(0.5, n_neurons=self.n_neurons_instr)
         nengo.Connection(
             pos_am.output, no_pos_chosen.input,
             transform=-np.sum(vocab.pos.vectors, axis=0)[:, None].T)
@@ -157,13 +158,13 @@ class InstructionProcessingSystem(Module):
 
         # ----------- INSTRUCTION CONSEQUENCE CIRCONV NETWORK -----------------
         instr_cons_cconv = cfg.make_cir_conv(
-            invert_b=True, input_magnitude=cfg.instr_cconv_radius)
+            invert_b=True, input_magnitude=cfg.instr_cconv_radius, n_neurons=self.n_neurons_instr*3)
         nengo.Connection(self.instr_input, instr_cons_cconv.A)
         nengo.Connection(pos_am.output, instr_cons_cconv.B)
 
         # -------------------- INSTRUCTION OUTPUTS ----------------------------
         # Instruction DATA output
-        data_sig_gen = Data_Sig_Gen(vocab.main, 'DATA')
+        data_sig_gen = Data_Sig_Gen(vocab.main, 'DATA', n_neurons=self.n_neurons_instr)
         nengo.Connection(
             instr_cons_cconv.output[inv_conT], data_sig_gen.input,
             transform=(instr_voc.parse('~DATA').get_convolution_matrix() *
@@ -206,7 +207,7 @@ class InstructionProcessingSystem(Module):
         # ------------- INSTRUCTION GATE OUTPUT ENABLE SIGNAL -----------------
         self.enable_in_sp = nengo.Node(size_in=vocab.instr.dimensions)
 
-        self.gate_disable = cfg.make_thresh_ens_net()
+        self.gate_disable = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_instr)
         nengo.Connection(self.enable_in_sp, self.gate_disable.input,
                          transform=-vocab.instr.parse('ENABLE').v[:, None].T)
         nengo.Connection(bias_node, self.gate_disable.input)

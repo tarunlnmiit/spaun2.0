@@ -4,7 +4,9 @@ import nengo
 from ...configurator import cfg
 
 
-def Output_Classification_Network(net=None, net_label='OUT CLASSIFICATION'):
+def Output_Classification_Network(net=None, net_label='OUT CLASSIFICATION', **args):
+    dec_args = dict(args)
+    n_neurons_dec = dec_args.get('n_neurons', cfg.n_neurons_ens)
     if net is None:
         net = nengo.Network(label=net_label)
 
@@ -37,9 +39,9 @@ def Output_Classification_Network(net=None, net_label='OUT CLASSIFICATION'):
         #         (sr_am_utils < cfg.dec_am_min_thresh &&
         #          fr_am_utils < cfg.dec_fr_min_thresh)
 
-        output_know = cfg.make_thresh_ens_net(0.55)
-        output_unk = cfg.make_thresh_ens_net(0.80)
-        output_stop = cfg.make_thresh_ens_net(0.75)
+        output_know = cfg.make_thresh_ens_net(0.55, n_neurons=n_neurons_dec)
+        output_unk = cfg.make_thresh_ens_net(0.80, n_neurons=n_neurons_dec)
+        output_stop = cfg.make_thresh_ens_net(0.75, n_neurons=n_neurons_dec)
 
         nengo.Connection(net.sr_utils_y, output_know.input, transform=0.5,
                          synapse=None)

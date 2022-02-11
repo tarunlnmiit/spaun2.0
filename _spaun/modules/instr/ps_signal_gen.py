@@ -18,14 +18,14 @@ def PS_Signal_Generator_Network(vocab, net_label, cleanup_threshold=0.3):
 
         # ----- AM Cleanup for input vector -----
         am = cfg.make_assoc_mem(vocab.vectors, threshold=cleanup_threshold,
-                                inhibitable=True)
+                                inhibitable=True, n_neurons=cfg.tg_n_neurons_instr)
         nengo.Connection(net.input, am.input)
 
         # ----- Zero SP detection network -----
         # Detect zero (vector with zeros for all elements) vector to disable
         # gate signal when input vector is zero vector.
         bias_node = nengo.Node(1)
-        zero_detect = nengo.Ensemble(cfg.n_neurons_ens, 1,
+        zero_detect = nengo.Ensemble(cfg.tg_n_neurons_instr, 1,
                                      encoders=Choice([[1]]),
                                      intercepts=Uniform(0.5, 1))
         nengo.Connection(bias_node, zero_detect)
@@ -38,7 +38,7 @@ def PS_Signal_Generator_Network(vocab, net_label, cleanup_threshold=0.3):
         # changes to zero vector.
         gate_sig_gen = DetectChange(
             dimensions=vocab.dimensions, blank_output_value=0, diff_scale=2.0,
-            item_magnitude=cfg.get_optimal_sp_radius(vocab.dimensions))
+            item_magnitude=cfg.get_optimal_sp_radius(vocab.dimensions), n_neurons=cfg.tg_n_neurons_instr)
         nengo.Connection(am.output, gate_sig_gen.input)
         nengo.Connection(zero_detect, gate_sig_gen.change_detect, transform=-5)
         nengo.Connection(am.inhibit, gate_sig_gen.change_detect, transform=-5)

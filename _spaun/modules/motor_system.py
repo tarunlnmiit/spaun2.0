@@ -17,6 +17,7 @@ from .motor import Controller, Ramp_Signal_Network, forcefield, mtr_data
 class MotorSystem(Module):
     def __init__(self, label="Motor Sys", seed=None, add_to_container=None):
         super(MotorSystem, self).__init__(label, seed, add_to_container)
+        self.n_neurons_mtr = cfg.tg_n_neurons_mtr
         self.init_module()
 
     @with_self
@@ -28,26 +29,29 @@ class MotorSystem(Module):
         self.motor_sp_in = nengo.Node(size_in=vocab.mtr_dim)
 
         # Motor bypass signal (runs the ramp, but doesn't output to the arm)
-        self.motor_bypass = cfg.make_thresh_ens_net()
+        self.motor_bypass = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_mtr)
 
         # Motor init signal
         self.motor_init_vis = cfg.make_thresh_ens_net(0.75, n_neurons=100)
         self.motor_init_ps_task = cfg.make_thresh_ens_net(0.75, n_neurons=100)
         self.motor_init_ps_dec = cfg.make_thresh_ens_net(0.75, n_neurons=100)
+        # self.motor_init_vis = cfg.make_thresh_ens_net(0.75, n_neurons=self.n_neurons_mtr*2)
+        # self.motor_init_ps_task = cfg.make_thresh_ens_net(0.75, n_neurons=self.n_neurons_mtr*2)
+        # self.motor_init_ps_dec = cfg.make_thresh_ens_net(0.75, n_neurons=self.n_neurons_mtr*2)
 
         # --------------- MOTOR SIGNALLING SYSTEM (STOP / GO) --------------
         # Motor go signal
-        self.motor_go = nengo.Ensemble(cfg.n_neurons_ens, 1)
+        self.motor_go = nengo.Ensemble(self.n_neurons_mtr, 1)
         nengo.Connection(bias_node, self.motor_go)
 
         # Motor stop signal
-        self.motor_stop_input = cfg.make_thresh_ens_net()
+        self.motor_stop_input = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_mtr)
         nengo.Connection(bias_node, self.motor_stop_input.input, synapse=None)
         nengo.Connection(self.motor_stop_input.output, self.motor_go.neurons,
-                         transform=[[-3]] * cfg.n_neurons_ens)
+                         transform=[[-3]] * self.n_neurons_mtr)
 
         # --------------- MOTOR SIGNALLING SYSTEM (RAMP SIG) --------------
-        self.ramp_sig = Ramp_Signal_Network()
+        self.ramp_sig = Ramp_Signal_Network(n_neurons=self.n_neurons_mtr)
 
         # Signal used to drive the ramp (the constant input signal)
         nengo.Connection(self.motor_go, self.ramp_sig.ramp,
@@ -78,7 +82,7 @@ class MotorSystem(Module):
         # --------------- FUNCTION REPLICATOR SYSTEM --------------
         mtr_func_dim = vocab.mtr_dim // 2
         func_eval_net = DiffFuncEvaltr(mtr_func_dim,
-                                       mtr_data.sp_scaling_factor, 2)
+                                       mtr_data.sp_scaling_factor, 2, n_neurons=self.n_neurons_mtr*10)
         func_eval_net.make_inhibitable(-5)
 
         nengo.Connection(self.ramp_sig.ramp, func_eval_net.func_input)
@@ -141,8 +145,9 @@ class MotorSystem(Module):
                                        np.hstack([arm.q, arm.dq]))
 
                 # Create ensemble for arm dynamics adaptation
-                adapt_ens = nengo.Ensemble(cfg.mtr_dyn_adaptation_n_neurons,
+                adapt_ens = nengo.Ensemble(self.n_neurons_mtr*20,
                                            arm_obj.DOF * 2)
+
 
                 # Get information from the arm and connect to learning ensemble
                 nengo.Connection(
@@ -191,6 +196,11 @@ class MotorSystem(Module):
                            intercepts=Exponential(0.09, target_thresh,
                                                   target_thresh * 2),
                            radius=target_thresh * 2)
+        # target_diff_norm = \
+        #     nengo.Ensemble(self.n_neurons_mtr*3, 2,
+        #                    intercepts=Exponential(0.09, target_thresh,
+        #                                           target_thresh * 2),
+        #                    radius=target_thresh * 2)
 
         nengo.Connection(func_eval_net.func_output, target_diff_norm,
                          synapse=0.01)
@@ -201,7 +211,7 @@ class MotorSystem(Module):
             nengo.Connection(func_eval_net.func_output, target_diff_norm,
                              synapse=0.01)
 
-        target_diff_norm_thresh = cfg.make_thresh_ens_net()
+        target_diff_norm_thresh = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_mtr)
         nengo.Connection(target_diff_norm, target_diff_norm_thresh.input,
                          function=lambda x:
                          (np.sqrt(x[0] ** 2 + x[1] ** 2)) > 0, transform=2)
@@ -236,7 +246,7 @@ class MotorSystem(Module):
                              synapse=0.01)
 
         # ------ MOTOR PEN DOWN CONTROL ------
-        pen_down = cfg.make_thresh_ens_net()
+        pen_down = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_mtr)
 
         # Pen is down by default
         nengo.Connection(bias_node, pen_down.input)

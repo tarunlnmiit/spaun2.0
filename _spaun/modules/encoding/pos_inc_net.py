@@ -5,6 +5,8 @@ from ...configurator import cfg
 
 def Pos_Inc_Network(pos_vocab, pos_reset_key, inc_sp, reversable=False,
                     net=None, net_label='POS INC', **args):
+    pos_args = dict(args)
+    n_neurons_pos = pos_args.get('n_neurons', cfg.n_neurons_ens)
     if net is None:
         net = nengo.Network(label=net_label)
 
@@ -21,7 +23,7 @@ def Pos_Inc_Network(pos_vocab, pos_reset_key, inc_sp, reversable=False,
                              transform=inc_sp.get_convolution_matrix())
         else:
             dir_sel = cfg.make_selector(2, default_sel=0,
-                                        make_ens_func=cfg.make_spa_ens_array)
+                                        make_ens_func=cfg.make_spa_ens_array, n_neurons=n_neurons_pos)
             nengo.Connection(net.pos_mb.output, dir_sel.input0,
                              transform=inc_sp.get_convolution_matrix())
             nengo.Connection(net.pos_mb.output, dir_sel.input1,

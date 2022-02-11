@@ -20,6 +20,7 @@ class InfoDecoding(Module):
     def __init__(self, label="Information Dec", seed=None,
                  add_to_container=None):
         super(InfoDecoding, self).__init__(label, seed, add_to_container)
+        self.n_neurons_dec = cfg.tg_n_neurons_dec
         self.init_module()
 
     @with_self
@@ -32,28 +33,28 @@ class InfoDecoding(Module):
 
         # ----------------- Items input gated integrator -------------------- #
         # Holds item (list) vector stable if necessary
-        items_input_mem = cfg.make_memory()
+        items_input_mem = cfg.make_memory(n_neurons=self.n_neurons_dec)
         nengo.Connection(self.items_input, items_input_mem.input,
                          synapse=None)
 
         # ----------------- Inhibition signal generation -------------------- #
         # Inhibition signal for when TASK != DEC
-        self.dec_am_task_inhibit = cfg.make_thresh_ens_net()
+        self.dec_am_task_inhibit = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_dec)
         nengo.Connection(bias_node, self.dec_am_task_inhibit.input,
                          synapse=None)
 
         # Generic inhibition signal?
-        self.dec_am_inhibit = cfg.make_thresh_ens_net(0.1)
+        self.dec_am_inhibit = cfg.make_thresh_ens_net(0.1, n_neurons=self.n_neurons_dec)
 
         # Inhibition signal when position vector changes
         self.pos_change = DetectChange(dimensions=vocab.sp_dim,
-                                       n_neurons=cfg.n_neurons_ens)
+                                       n_neurons=self.n_neurons_dec)
         nengo.Connection(self.pos_input, self.pos_change.input)
 
         # ---------- Decoding POS mem block gate signal generation ---------- #
         # Decoding POS mem block gate signal generation (from motor system)
-        self.pos_mb_gate_bias = cfg.make_thresh_ens_net(n_neurons=200)
-        self.pos_mb_gate_sig = cfg.make_thresh_ens_net(0.3)
+        self.pos_mb_gate_bias = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_dec*4)
+        self.pos_mb_gate_sig = cfg.make_thresh_ens_net(0.3, n_neurons=self.n_neurons_dec)
 
         # Bias does ...?
         # Gate signal does ...?
@@ -62,7 +63,7 @@ class InfoDecoding(Module):
         nengo.Connection(bias_node, self.pos_mb_gate_bias.input, transform=-1)
 
         # -------------------- Serial decoding network ---------------------- #
-        serial_decode = Serial_Recall_Network(vocab.item, vocab.mtr)
+        serial_decode = Serial_Recall_Network(vocab.item, vocab.mtr, n_neurons=self.n_neurons_dec)
         nengo.Connection(items_input_mem.output, serial_decode.items_input,
                          transform=cfg.dcconv_item_in_scale, synapse=None)
         nengo.Connection(self.pos_input, serial_decode.pos_input,
@@ -75,7 +76,7 @@ class InfoDecoding(Module):
 
         # ---------------- Free recall decoding network --------------------- #
         self.free_recall_decode = Free_Recall_Network(vocab.item, vocab.pos,
-                                                      vocab.mtr)
+                                                      vocab.mtr, n_neurons=self.n_neurons_dec)
         nengo.Connection(items_input_mem.output,
                          self.free_recall_decode.items_input,
                          transform=cfg.dec_fr_item_in_scale, synapse=None)
@@ -122,7 +123,8 @@ class InfoDecoding(Module):
                                          vis_data.am_threshold * 0.5, 1,
                                          copy_draw_trfms_x,
                                          copy_draw_trfms_y, vocab.mtr,
-                                         mtr_data.sp_scaling_factor)
+                                         mtr_data.sp_scaling_factor,
+                                         n_neurons=self.n_neurons_dec)
 
             # Inhibitory connections
             nengo.Connection(self.dec_am_task_inhibit.output,
@@ -134,7 +136,7 @@ class InfoDecoding(Module):
                                                vectors_out=vocab.mtr.vectors)
 
         # -------- Output classification (know / unknown / stop) system ----- #
-        self.output_classify = Output_Classification_Network()
+        self.output_classify = Output_Classification_Network(n_neurons=self.n_neurons_dec)
         nengo.Connection(serial_decode.dec_success,
                          self.output_classify.sr_utils_y,
                          transform=[[1.0] * serial_decode.dec_am1.n_items],
@@ -169,7 +171,8 @@ class InfoDecoding(Module):
                                             dimensions=vocab.mtr_dim,
                                             make_ens_func=cfg.make_ens_array,
                                             ens_dimensions=1,
-                                            threshold_sel_in=True)
+                                            threshold_sel_in=True,
+                                            n_neurons=self.n_neurons_dec)
 
         # Connections for sel0 - SR
         nengo.Connection(serial_decode.output, self.select_out.input0)

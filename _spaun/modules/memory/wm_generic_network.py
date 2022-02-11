@@ -4,29 +4,32 @@ import nengo
 from ...configurator import cfg
 
 
-def WM_Generic_Network(vocab, sp_add_matrix, net=None, net_label="MB"):
+def WM_Generic_Network(vocab, sp_add_matrix, net=None, net_label="MB", **args):
     if net is None:
         net = nengo.Network(label=net_label)
 
     if sp_add_matrix is None:
         sp_add_matrix = np.eye(vocab.dimensions)
 
+    wm_args = dict(args)
+    n_neurons_wm = wm_args.get('n_neurons', cfg.n_neurons_ens)
+
     with net:
         # Memory block (MBA - long term memory (rehearsal),
         #               MBB - short term memory (decay))
         sel_in = cfg.make_selector(3, default_sel=0,
-                                   label=net_label + 'Input Selector')
+                                   label=net_label + 'Input Selector', n_neurons=n_neurons_wm)
 
         mb_gate = nengo.Node(size_in=1, label=net_label + ' Gate Node')
         mb_reset = nengo.Node(size_in=1, label=net_label + ' Reset Node')
 
         mba = cfg.make_mem_block(vocab=vocab, reset_key=0, ens_dimensions=1,
                                  label=net_label + 'A (Rehearsal)',
-                                 make_ens_func=cfg.make_spa_ens_array)
+                                 make_ens_func=cfg.make_spa_ens_array, n_neurons=n_neurons_wm)
         mbb = cfg.make_mem_block(vocab=vocab, fdbk_transform=cfg.mb_decay_val,
                                  ens_dimensions=1, reset_key=0,
                                  label=net_label + 'B (Decay)',
-                                 make_ens_func=cfg.make_spa_ens_array)
+                                 make_ens_func=cfg.make_spa_ens_array, n_neurons=n_neurons_wm)
 
         nengo.Connection(sel_in.output, mba.input,
                          transform=cfg.mb_rehearsalbuf_input_scale)
@@ -35,9 +38,9 @@ def WM_Generic_Network(vocab, sp_add_matrix, net=None, net_label="MB"):
 
         # Feedback gating ensembles. NOTE: Needs thresholded input as gate
         mba_fdbk_gate = \
-            cfg.make_spa_ens_array_gate(label=net_label + 'A Fdbk Gate')
+            cfg.make_spa_ens_array_gate(label=net_label + 'A Fdbk Gate', n_neurons=n_neurons_wm)
         mbb_fdbk_gate = \
-            cfg.make_spa_ens_array_gate(label=net_label + 'B Fdbk Gate')
+            cfg.make_spa_ens_array_gate(label=net_label + 'B Fdbk Gate', n_neurons=n_neurons_wm)
 
         mb_fdbk_gate = nengo.Node(size_in=1, label=net_label + ' Fdbk Gate')
         nengo.Connection(mb_fdbk_gate, mba_fdbk_gate.gate, synapse=None)

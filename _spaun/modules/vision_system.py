@@ -23,6 +23,7 @@ class VisionSystem(Module):
             vis_net_cfg = vis_data
         # Here the following arguments are passed as by default:
         # None None <_spaun.modules.vision.lif_vision.data.LIFVisionDataObject> None
+        self.n_neurons_vis = cfg.tg_n_neurons_vis
         self.init_module(vis_net, detect_net, vis_net_cfg, vis_net_neuron_type)
 
     @with_self
@@ -43,7 +44,7 @@ class VisionSystem(Module):
         if detect_net is None:
             detect_net = \
                 DetectChange(dimensions=detect_net_max_dim,
-                             n_neurons=cfg.n_neurons_ens)
+                             n_neurons=self.n_neurons_vis)
         self.detect_change_net = detect_net
         nengo.Connection(self.vis_net.raw_output[detect_net_inds],
                          self.detect_change_net.input, synapse=None)
@@ -51,13 +52,13 @@ class VisionSystem(Module):
         # Make associative memory to map visual image semantic pointers to
         # visual conceptual semantic pointers
         self.vis_classify = VisionNetClassifier(vis_net_cfg,
-                                                vocab.vis_main.vectors)
+                                                vocab.vis_main.vectors, n_neurons=self.n_neurons_vis)
         nengo.Connection(self.vis_net.to_classify_output,
                          self.vis_classify.input, synapse=0.005)
         # nengo.Connection(self.detect_change_net.output,
         #                  self.vis_classify.inhibit, transform=3, synapse=0.005)
 
-        detect_change_net_delay = cfg.make_thresh_ens_net(0.80)
+        detect_change_net_delay = cfg.make_thresh_ens_net(0.80, n_neurons=self.n_neurons_vis)
         nengo.Connection(self.detect_change_net.output,
                          detect_change_net_delay.input)
         nengo.Connection(detect_change_net_delay.output,
@@ -65,7 +66,7 @@ class VisionSystem(Module):
 
         # Visual memory block (for the visual semantic pointers - top layer of
         #                      vis_net)
-        self.vis_mem = cfg.make_memory(n_neurons=cfg.n_neurons_mb * 2,
+        self.vis_mem = cfg.make_memory(n_neurons=self.n_neurons_vis * 2,
                                        dimensions=vocab.vis_dim,
                                        ens_dimensions=1,
                                        make_ens_func=cfg.make_ens_array,
@@ -99,7 +100,7 @@ class VisionSystem(Module):
         # Visual memory (for the visual concept semantic pointers - out
         #                of the AM)
         self.vis_main_mem = \
-            cfg.make_memory(dimensions=vocab.sp_dim, n_neurons=100,
+            cfg.make_memory(dimensions=vocab.sp_dim, n_neurons=self.n_neurons_vis * 2,
                             represent_identity=False, ens_dimensions=1,
                             make_ens_func=cfg.make_spa_ens_array)
         nengo.Connection(self.vis_classify.output, self.vis_main_mem.input,

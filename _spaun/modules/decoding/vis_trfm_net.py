@@ -9,7 +9,9 @@ from ...configurator import cfg
 def Visual_Transform_Network(vis_vocab, vis_am_threshold, vis_am_input_scale,
                              copy_draw_trfms_x, copy_draw_trfms_y,
                              mtr_vocab, mtr_sp_scale_factor,
-                             net=None, net_label='VIS TRFM'):
+                             net=None, net_label='VIS TRFM', **args):
+    dec_args = dict(args)
+    n_neurons_dec = dec_args.get('n_neurons', cfg.n_neurons_ens)
     if net is None:
         net = nengo.Network(label=net_label)
 
@@ -32,8 +34,9 @@ def Visual_Transform_Network(vis_vocab, vis_am_threshold, vis_am_input_scale,
                                         len(mtr_vocab.keys))) -
                                np.eye(len(mtr_vocab.keys)),
                                threshold=vis_am_threshold,
-                               label='DIGIT CLASSIFY', inhibitable=True)
-        digit_classify.add_default_output_vector(np.ones(len(mtr_vocab.keys)))
+                               label='DIGIT CLASSIFY', inhibitable=True,
+                               n_neurons=n_neurons_dec)
+        digit_classify.add_default_output_vector(np.ones(len(mtr_vocab.keys)), n_neurons=n_neurons_dec)
         nengo.Connection(net.input, digit_classify.input,
                          transform=vis_am_input_scale, synapse=None)
 
@@ -56,7 +59,7 @@ def Visual_Transform_Network(vis_vocab, vis_am_threshold, vis_am_input_scale,
             trfm_x = np.array(copy_draw_trfms_x[n])
             trfm_y = np.array(copy_draw_trfms_y[n])
 
-            trfm_ea = EnsembleArray(n_neurons=cfg.n_neurons_ens,
+            trfm_ea = EnsembleArray(n_neurons=n_neurons_dec,
                                     n_ensembles=mtr_vocab.dimensions,
                                     radius=mtr_sp_scale_factor)
             cfg.make_inhibitable(trfm_ea)

@@ -4,14 +4,17 @@ import nengo
 from ...configurator import cfg
 
 
-def WM_Averaging_Network(vocab, net=None, net_label="MBAve"):
+def WM_Averaging_Network(vocab, net=None, net_label="MBAve", **args):
     if net is None:
         net = nengo.Network(label=net_label)
+
+    wm_args = dict(args)
+    n_neurons_wm = wm_args.get('n_neurons', cfg.n_neurons_ens)
 
     with net:
         mb = cfg.make_mem_block(vocab=vocab, label=net_label, reset_key=0,
                                 ens_dimensions=1, represent_identity=True,
-                                identity_radius=2.0)
+                                identity_radius=2.0, n_neurons=n_neurons_wm)
 
         # Feedback from mb ave to mb ave = 1 - alpha
         nengo.Connection(mb.output, mb.input,
@@ -19,13 +22,13 @@ def WM_Averaging_Network(vocab, net=None, net_label="MBAve"):
 
         # Initial input to mb ave = input * (1 - alpha)
         # - So that mb ave is initialized with full input when empty
-        mb_in_init = cfg.make_spa_ens_array_gate()
+        mb_in_init = cfg.make_spa_ens_array_gate(n_neurons=n_neurons_wm)
         nengo.Connection(mb_in_init.output, mb.input,
                          transform=(1 - cfg.trans_ave_scale))
 
         # Output norm calculation for mb ave (to shut off init input to mbave)
         mb.mem2.mem.add_output('squared', lambda x: x * x)
-        mb_norm = cfg.make_thresh_ens_net()
+        mb_norm = cfg.make_thresh_ens_net(n_neurons=n_neurons_wm)
         nengo.Connection(mb.mem2.mem.squared, mb_norm.input,
                          transform=np.ones((1, vocab.dimensions)))
         nengo.Connection(mb_norm.output, mb_in_init.gate)

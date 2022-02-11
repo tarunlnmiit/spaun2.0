@@ -5,7 +5,9 @@ from ...configurator import cfg
 
 
 def Serial_Recall_Network(item_vocab, mtr_vocab,
-                          net=None, net_label='SER RECALL'):
+                          net=None, net_label='SER RECALL', **args):
+    dec_args = dict(args)
+    n_neurons_dec = dec_args.get('n_neurons', cfg.n_neurons_ens)
     if net is None:
         net = nengo.Network(label=net_label)
 
@@ -14,7 +16,7 @@ def Serial_Recall_Network(item_vocab, mtr_vocab,
 
         # -------------------------- MB * POS~ --------------------------------
         net.item_dcconv = cfg.make_cir_conv(invert_b=True,
-                                            input_magnitude=cfg.dcconv_radius)
+                                            input_magnitude=cfg.dcconv_radius, n_neurons=n_neurons_dec*3)
 
         # ----------------- AM (Strongest component) Decoding -----------------
         net.dec_am1 = \
@@ -22,7 +24,8 @@ def Serial_Recall_Network(item_vocab, mtr_vocab,
                                inhibitable=True,
                                threshold=cfg.dec_am_min_thresh,
                                default_output_vector=(
-                                   np.zeros(mtr_vocab.dimensions)))
+                                   np.zeros(mtr_vocab.dimensions)),
+                               n_neurons=n_neurons_dec)
         net.dec_am1.add_output_mapping(
             'linear_output', np.eye(len(item_vocab.keys)),
             net.dec_am1.threshold_shifted_linear_funcs())
@@ -34,7 +37,8 @@ def Serial_Recall_Network(item_vocab, mtr_vocab,
         net.dec_am2 = cfg.make_assoc_mem(item_vocab.vectors,
                                          item_vocab.vectors,
                                          inhibitable=True,
-                                         threshold=0.0)
+                                         threshold=0.0,
+                                         n_neurons=n_neurons_dec)
         net.dec_am2.add_output_mapping(
             'linear_output', np.eye(len(item_vocab.keys)),
             net.dec_am2.threshold_shifted_linear_funcs())
@@ -51,20 +55,20 @@ def Serial_Recall_Network(item_vocab, mtr_vocab,
         # -------------- AM Utilities Difference Calculation ------------------
         # Util diff calculation: High if difference between am1 utils and
         # am2 utils is greater than cfg.dec_am_min_diff
-        util_diff = cfg.make_thresh_ens_net(cfg.dec_am_min_diff)
+        util_diff = cfg.make_thresh_ens_net(cfg.dec_am_min_diff, n_neurons=n_neurons_dec)
         nengo.Connection(net.dec_am1.linear_output, util_diff.input,
                          transform=[[1] * len(item_vocab.keys)], synapse=0.02)
         nengo.Connection(net.dec_am2.linear_output, util_diff.input,
                          transform=[[-1] * len(item_vocab.keys)], synapse=0.02)
 
-        util_diff_neg = cfg.make_thresh_ens_net(1 - cfg.dec_am_min_diff)
+        util_diff_neg = cfg.make_thresh_ens_net(1 - cfg.dec_am_min_diff, n_neurons=n_neurons_dec)
         nengo.Connection(bias_node, util_diff_neg.input)
         nengo.Connection(util_diff.output, util_diff_neg.input, transform=-2,
                          synapse=0.01)
         nengo.Connection(net.dec_am1.inhibit, util_diff_neg.input,
                          transform=-2)  # WHY IS THIS HERE?
 
-        util_diff_thresh = cfg.make_thresh_ens_net()   # Clean util_diff signal
+        util_diff_thresh = cfg.make_thresh_ens_net(n_neurons=n_neurons_dec)   # Clean util_diff signal
         nengo.Connection(bias_node, util_diff_thresh.input)
         nengo.Connection(util_diff_neg.output, util_diff_thresh.input,
                          transform=-2, synapse=0.01)

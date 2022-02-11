@@ -6,7 +6,9 @@ from ...configurator import cfg
 def Assoc_Mem_Transforms_Network(item_vocab, pos_vocab, pos1_vocab,
                                  max_enum_list_pos, action_learn_vocab,
                                  cmp_vocab, net=None,
-                                 net_label='AM TRANSFORMS'):
+                                 net_label='AM TRANSFORMS', **args):
+    amtrfm_args = dict(args)
+    n_neurons_amtrfm = amtrfm_args.get('n_neurons', cfg.n_neurons_ens)
     if net is None:
         net = nengo.Network(label=net_label)
 
@@ -31,13 +33,13 @@ def Assoc_Mem_Transforms_Network(item_vocab, pos_vocab, pos1_vocab,
         # ---------------- Associative Memories for Q & A ---------------------
         net.am_p1 = cfg.make_assoc_mem(
             pos1_vocab.vectors[1:max_enum_list_pos + 1, :],
-            pos_vocab.vectors)
-        net.am_n1 = cfg.make_assoc_mem(pos1_vocab.vectors, item_vocab.vectors)
+            pos_vocab.vectors, n_neurons=n_neurons_amtrfm)
+        net.am_n1 = cfg.make_assoc_mem(pos1_vocab.vectors, item_vocab.vectors, n_neurons=n_neurons_amtrfm)
 
         net.am_p2 = cfg.make_assoc_mem(
             pos_vocab.vectors,
-            pos1_vocab.vectors[1:max_enum_list_pos + 1, :])
-        net.am_n2 = cfg.make_assoc_mem(item_vocab.vectors, pos1_vocab.vectors)
+            pos1_vocab.vectors[1:max_enum_list_pos + 1, :], n_neurons=n_neurons_amtrfm)
+        net.am_n2 = cfg.make_assoc_mem(item_vocab.vectors, pos1_vocab.vectors, n_neurons=n_neurons_amtrfm)
 
         nengo.Connection(net.frm_mb2, net.am_p1.input, synapse=None)
         nengo.Connection(net.frm_mb2, net.am_n1.input, synapse=None)
@@ -48,7 +50,7 @@ def Assoc_Mem_Transforms_Network(item_vocab, pos_vocab, pos1_vocab,
         # For learning task action mapping
         net.am_action_learn = cfg.make_assoc_mem(
             action_learn_vocab.vectors,
-            pos1_vocab.vectors[:len(action_learn_vocab.keys), :])
+            pos1_vocab.vectors[:len(action_learn_vocab.keys), :], n_neurons=n_neurons_amtrfm)
 
         nengo.Connection(net.frm_action, net.am_action_learn.input,
                          synapse=None)
@@ -59,7 +61,7 @@ def Assoc_Mem_Transforms_Network(item_vocab, pos_vocab, pos1_vocab,
         net.am_compare = cfg.make_assoc_mem(
             cmp_vocab.vectors,
             pos1_vocab.vectors[:len(cmp_vocab.keys), :],
-            threshold=0.25)
+            threshold=0.25, n_neurons=n_neurons_amtrfm)
 
         nengo.Connection(net.frm_compare, net.am_compare.input,
                          synapse=None)

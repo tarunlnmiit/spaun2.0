@@ -14,6 +14,7 @@ class InfoEncoding(Module):
     def __init__(self, label="Information Enc", seed=None,
                  add_to_container=None):
         super(InfoEncoding, self).__init__(label, seed, add_to_container)
+        self.n_neurons_enc = cfg.tg_n_neurons_enc
         self.init_module()
 
     @with_self
@@ -21,17 +22,17 @@ class InfoEncoding(Module):
         self.bias_node = nengo.Node(1, label='Bias')
 
         # ------ Common gate signal -----
-        self.pos_gate = cfg.make_thresh_ens_net(0.25)
+        self.pos_gate = cfg.make_thresh_ens_net(0.25, n_neurons=self.n_neurons_enc)
         nengo.Connection(self.bias_node, self.pos_gate.input, transform=1.2)
 
         # ------ Position (auto) incrementer network ------
         self.pos_inc = Pos_Inc_Network(vocab.pos, vocab.pos_sp_strs[0],
                                        vocab.inc_sp, reversable=True,
-                                       threshold_gate_in=True)
+                                       threshold_gate_in=True, n_neurons=self.n_neurons_enc)
         nengo.Connection(self.pos_gate.output, self.pos_inc.gate)
 
         # POS x ITEM
-        self.item_cconv = cfg.make_cir_conv()
+        self.item_cconv = cfg.make_cir_conv(n_neurons=self.n_neurons_enc*3)
         nengo.Connection(self.pos_inc.output, self.item_cconv.A)
 
         self.enc_output = nengo.Node(size_in=vocab.sp_dim)
@@ -46,7 +47,7 @@ class InfoEncoding(Module):
                                              vocab=vocab.pos,
                                              reset_key=0,
                                              radius=acc_radius,
-                                             n_neurons=50,
+                                             n_neurons=self.n_neurons_enc,
                                              cleanup_mode=1,
                                              threshold_gate_in=True)
         nengo.Connection(self.pos_gate.output, self.pos_mb_acc.gate)
@@ -56,7 +57,7 @@ class InfoEncoding(Module):
         # REV state pos_inc gate bias (generates a pulse when VIS=QM and
         # DEC=REV to decrease POS in pos_inc by one -- because pos_inc always
         # holds the POS of the next item to be encoded).
-        self.pos_inc_rev_gate_bias = cfg.make_thresh_ens_net()
+        self.pos_inc_rev_gate_bias = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_enc)
         nengo.Connection(self.bias_node, self.pos_inc_rev_gate_bias.input,
                          transform=-1)
         nengo.Connection(self.pos_inc_rev_gate_bias.output, self.pos_inc.gate,

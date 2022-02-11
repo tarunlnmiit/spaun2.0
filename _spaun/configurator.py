@@ -18,6 +18,8 @@ from .vocabulator import vocab
 from .loggerator import logger
 
 
+# TODO: Understanding the meanings of the class variables
+
 class SpaunConfig(object):
     def __init__(self):
         self.seed = -1
@@ -34,6 +36,27 @@ class SpaunConfig(object):
         self.n_neurons_cconv = 150
         self.n_neurons_mb = 50
         self.n_neurons_am = 50
+        if vocab.sp_dim == 512:
+            self.tg_n_neurons_wm = 5  # For original config set this to self.n_neurons_ens
+            self.tg_n_neurons_vis = 5  # For original config set this to self.n_neurons_ens
+            self.tg_n_neurons_ps = 50  # For original config set this to self.n_neurons_mb and self.n_neurons_am
+            self.tg_n_neurons_reward = 5  # For original config set this to self.n_neurons_ens
+            self.tg_n_neurons_enc = 5  # For original config set this to self.n_neurons_ens
+            self.tg_n_neurons_trfm = 5  # For original config set this to self.n_neurons_ens
+            self.tg_n_neurons_dec = 5  # For original config set this to self.n_neurons_ens
+            self.tg_n_neurons_mtr = 5  # For original config set this to self.n_neurons_ens
+            self.tg_n_neurons_instr = 5  # For original config set this to self.n_neurons_ens
+        else:
+            self.tg_n_neurons_wm = 50  # For original config set this to self.n_neurons_ens
+            self.tg_n_neurons_vis = 50  # For original config set this to self.n_neurons_ens
+            self.tg_n_neurons_ps = 50  # For original config set this to self.n_neurons_mb and self.n_neurons_am
+            self.tg_n_neurons_reward = 50  # For original config set this to self.n_neurons_ens
+            self.tg_n_neurons_enc = 50  # For original config set this to self.n_neurons_ens
+            self.tg_n_neurons_trfm = 50  # For original config set this to self.n_neurons_ens
+            self.tg_n_neurons_dec = 50  # For original config set this to self.n_neurons_ens
+            self.tg_n_neurons_mtr = 50  # For original config set this to self.n_neurons_ens
+            self.tg_n_neurons_instr = 50  # For original config set this to self.n_neurons_ens
+        self.tg_n_neurons_mtr_ratio = self.tg_n_neurons_mtr / self.n_neurons_ens
         self.max_rates = Uniform(100, 200)
         self.neuron_type = nengo.LIF()
 
@@ -41,6 +64,8 @@ class SpaunConfig(object):
 
         self.stim_module = 'mnist'
         self.vis_module = 'lif_vision'
+        # self.stim_module = 'imagenet'
+        # self.vis_module = 'lif_imagenet'
 
         self.spaun_modules = 'SVPREWTDMI'
 
@@ -111,6 +136,8 @@ class SpaunConfig(object):
         self.probe_data_filename = 'probe_data.npz'
         self.probe_graph_config = 'ProbeCfgDefault'
         self.probe_anim_config = 'ProbeCfgAnimDefault'
+        # self.probe_anim_config = 'ProbeCfgDefault'
+        # self.probe_anim_config = 'ProbeCfgVisOnly'
 
     @property
     def backend(self):
@@ -118,6 +145,11 @@ class SpaunConfig(object):
 
     @backend.setter
     def backend(self, val):
+        '''
+
+        :param val: backend value received during method call
+        :return: Nothing | Set Object Instance variable _backend = val
+        '''
         val = val.lower()
         if val in ['ref']:
             self._backend = 'ref'
@@ -158,6 +190,7 @@ class SpaunConfig(object):
                                    __package__)
         return arm_module.Arm
 
+    # decorator and like a prefix method before mtr_est_digit_response_time is executed
     @property
     def mtr_est_digit_response_time(self):
         return 1.0 / self.mtr_ramp_scale + 0.60
@@ -173,9 +206,17 @@ class SpaunConfig(object):
         logger.write('#\n')
 
     def set_seed(self, seed):
+        '''
+
+        :param seed: Seed value received in the method call
+        :return: Nothing | Set Object Instance variable seed = seed
+        Set numpy seed value
+        Store a slow Mersenne Twister pseudo-random number in Instance variable rng
+        '''
         if seed > 0:
             self.seed = seed
             np.random.seed(self.seed)
+            # Container for the slow Mersenne Twister pseudo-random number generator.
             self.rng = np.random.RandomState(self.seed)
 
     def get_optimal_sp_radius(self, dim=None, subdim=1):
@@ -208,13 +249,13 @@ class SpaunConfig(object):
         am_net = AM(input_vectors, output_vectors, **am_args)
 
         if default_output_vector is not None:
-            am_net.add_default_output_vector(default_output_vector)
+            am_net.add_default_output_vector(default_output_vector, n_neurons=am_args['n_neurons'])
 
         if wta_inhibit_scale is not None:
             am_net.add_wta_network(wta_inhibit_scale)
 
         if cleanup_output:
-            am_net.add_cleanup_output(replace_output=True)
+            am_net.add_cleanup_output(replace_output=True, n_neurons=am_args['n_neurons'])
 
         return am_net
 
@@ -301,12 +342,14 @@ class SpaunConfig(object):
         label_str = args.get('label', '')
 
         net = nengo.Network(label=' '.join([label_str, 'Gate']))
+        spa_ens_args = dict(args)
+        n_neurons = spa_ens_args.get('n_neurons', cfg.n_neurons_ens)
         with net:
             ens_array = self.make_spa_ens_array(**args)
             self.make_inhibitable(ens_array, inhib_scale)
 
             if threshold_gate:
-                thresh_net = self.make_thresh_ens_net()
+                thresh_net = self.make_thresh_ens_net(n_neurons=n_neurons)
                 net.gate = thresh_net.input
 
                 nengo.Connection(thresh_net.output, ens_array.inhibit)
@@ -355,7 +398,7 @@ class SpaunConfig(object):
         norm_net = VectorNormalize(min_input_magnitude, max_input_magnitude,
                                    **ens_args)
         with norm_net:
-            disable_ens = self.make_thresh_ens_net()
+            disable_ens = self.make_thresh_ens_net(n_neurons=ens_args['n_neurons_norm'])
             norm_net.disable = disable_ens.input
             for net in norm_net.networks:
                 if net.label == "Product":

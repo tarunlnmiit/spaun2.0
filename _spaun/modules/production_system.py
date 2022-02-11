@@ -12,6 +12,7 @@ class ProductionSystem(Module):
     def __init__(self, label="Production Sys", seed=None,
                  add_to_container=None):
         super(ProductionSystem, self).__init__(label, seed, add_to_container)
+        self.n_neurons_ps = cfg.tg_n_neurons_ps
         self.init_module()
 
     @with_self
@@ -23,42 +24,42 @@ class ProductionSystem(Module):
                                    input_transform=cfg.ps_mb_gain_scale,
                                    cleanup_mode=1, fdbk_transform=1.05,
                                    threshold=0.5, wta_output=False,
-                                   reset_key='X')
+                                   reset_key='X', n_neurons=self.n_neurons_ps)
 
             self.state_mb = \
                 cfg.make_mem_block(vocab=vocab.ps_state,
                                    input_transform=cfg.ps_mb_gain_scale,
                                    cleanup_mode=1, fdbk_transform=1.05,
                                    threshold=0.3, wta_output=True,
-                                   wta_inhibit_scale=3, reset_key='TRANS0')
+                                   wta_inhibit_scale=3, reset_key='TRANS0', n_neurons=self.n_neurons_ps)
 
             self.dec_mb = \
                 cfg.make_mem_block(vocab=vocab.ps_dec,
                                    input_transform=cfg.ps_mb_gain_scale,
                                    cleanup_mode=1, fdbk_transform=1.05,
                                    threshold=0.3, wta_output=True,
-                                   wta_inhibit_scale=3, reset_key='FWD')
+                                   wta_inhibit_scale=3, reset_key='FWD', n_neurons=self.n_neurons_ps)
         else:
             self.task_mb = \
                 cfg.make_mem_block(vocab=vocab.ps_task,
                                    input_transform=cfg.ps_mb_gain_scale,
-                                   fdbk_transform=1.005, reset_key='X')
+                                   fdbk_transform=1.005, reset_key='X', n_neurons=self.n_neurons_ps)
 
             self.state_mb = \
                 cfg.make_mem_block(vocab=vocab.ps_state,
                                    input_transform=cfg.ps_mb_gain_scale,
-                                   fdbk_transform=1.005, reset_key='TRANS0')
+                                   fdbk_transform=1.005, reset_key='TRANS0', n_neurons=self.n_neurons_ps)
 
             self.dec_mb = \
                 cfg.make_mem_block(vocab=vocab.ps_dec,
                                    input_transform=cfg.ps_mb_gain_scale,
-                                   fdbk_transform=1.005, reset_key='FWD')
+                                   fdbk_transform=1.005, reset_key='FWD', n_neurons=self.n_neurons_ps)
 
         # ------ Associative memory for non-mb actions ------
         self.action_in = nengo.Node(size_in=vocab.ps_action.dimensions)
         self.action_am = \
             cfg.make_assoc_mem(input_vectors=vocab.ps_action.vectors,
-                               threshold=cfg.ps_action_am_threshold)  # ,
+                               threshold=cfg.ps_action_am_threshold, n_neurons=self.n_neurons_ps)  # ,
                                # wta_inhibit_scale=None)  # noqa
         nengo.Connection(self.action_in, self.action_am.input, synapse=0.01)
 
@@ -73,7 +74,7 @@ class ProductionSystem(Module):
         # - task mb gate signal is set high when in init state.
         # - state mb gate signal is set high when in init state.
         # - dec mb gate signal is set high when in init state.
-        self.task_init = cfg.make_thresh_ens_net(0.4)
+        self.task_init = cfg.make_thresh_ens_net(0.4, n_neurons=self.n_neurons_ps)
 
         nengo.Connection(self.task_init.output, self.task_mb.gate)
         nengo.Connection(self.task_init.output, self.state_mb.gate)
@@ -86,7 +87,7 @@ class ProductionSystem(Module):
 
         # ------ Gate signal from decoding system ------
         # Decoding gate signal for changing state and dec mb's in the DEC phase
-        self.dec_sys_gate_sig = cfg.make_thresh_ens_net(0.5)
+        self.dec_sys_gate_sig = cfg.make_thresh_ens_net(0.5, n_neurons=self.n_neurons_ps)
         nengo.Connection(self.dec_sys_gate_sig.output, self.state_mb.gate,
                          transform=5)
         nengo.Connection(self.dec_sys_gate_sig.output, self.dec_mb.gate,

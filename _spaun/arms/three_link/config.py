@@ -1,5 +1,6 @@
 import numpy as np
 from nengo.dists import Choice, Uniform
+from ...configurator import cfg
 
 
 class OSCConfig(object):
@@ -8,22 +9,23 @@ class OSCConfig(object):
     of OSC"""
 
     # OSC ------------------------------------------------------------------- #
+    n_neurons_ratio = cfg.tg_n_neurons_mtr_ratio
 
-    n_neurons = 7000
+    n_neurons = int(7000 * n_neurons_ratio)
     CB = {'dimensions': 6,
           # 'max_rates': Uniform(low=10, high=200),
           'n_neurons': n_neurons,
           'radius': 5,
           }
 
-    n_neurons = 7000
+    n_neurons = int(7000 * n_neurons_ratio)
     M1 = {'dimensions': 6,
           # 'max_rates': Uniform(low=00, high=100),
           'n_neurons': n_neurons,
           'radius': .25,
           }
 
-    n_neurons = 9000
+    n_neurons = int(9000 * n_neurons_ratio)
     M1_mult = {'encoders': Choice([[1, 1], [-1, 1], [-1, -1], [1, -1]]),
                'ens_dimensions': 2,
                'n_ensembles': 6,
@@ -31,7 +33,7 @@ class OSCConfig(object):
                'radius': np.sqrt(2),
                }
 
-    n_neurons = 5000
+    n_neurons = int(5000 * n_neurons_ratio)
     M1_null = {'dimensions': 3,
                # 'max_rates': Uniform(low=10, high=200),
                'n_neurons': n_neurons,
@@ -40,17 +42,20 @@ class OSCConfig(object):
 
     # DMPs ------------------------------------------------------------------ #
 
+    n_neurons = int(500 * n_neurons_ratio)
     oscillator = {'dimensions': 2,
-                  'n_neurons': 500,
+                  'n_neurons': n_neurons,
                   'radius': .01,
                   }
 
+    n_neurons = int(2000 * n_neurons_ratio)
     forcing_func = {'dimensions': 2,
-                    'n_neurons': 2000,
+                    'n_neurons': n_neurons,
                     }
 
+    n_neurons = int(1000 * n_neurons_ratio)
     y = {'dimensions': 1,
-         'n_neurons': 1000,
+         'n_neurons': n_neurons,
          'radius': 5,
          }
 

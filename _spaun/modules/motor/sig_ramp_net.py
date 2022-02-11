@@ -3,7 +3,9 @@ import nengo
 from ...configurator import cfg
 
 
-def Ramp_Signal_Network(net=None, net_label='RAMP SIGNAL'):
+def Ramp_Signal_Network(net=None, net_label='RAMP SIGNAL', **args):
+    ramp_args = dict(args)
+    n_neurons_ramp = ramp_args.get('n_neurons', cfg.n_neurons_ens)
     if net is None:
         net = nengo.Network(label=net_label)
 
@@ -12,7 +14,7 @@ def Ramp_Signal_Network(net=None, net_label='RAMP SIGNAL'):
 
         # Ramp init hold
         ramp_init_hold = \
-            cfg.make_thresh_ens_net(0.07, thresh_func=lambda x: x)
+            cfg.make_thresh_ens_net(0.07, thresh_func=lambda x: x, n_neurons=n_neurons_ramp)
         nengo.Connection(ramp_init_hold.output,
                          ramp_init_hold.input)
         nengo.Connection(bias_node, ramp_init_hold.input,
@@ -20,14 +22,14 @@ def Ramp_Signal_Network(net=None, net_label='RAMP SIGNAL'):
 
         # Ramp reset hold
         ramp_reset_hold = \
-            cfg.make_thresh_ens_net(0.07, thresh_func=lambda x: x)
+            cfg.make_thresh_ens_net(0.07, thresh_func=lambda x: x, n_neurons=n_neurons_ramp)
         nengo.Connection(ramp_reset_hold.output,
                          ramp_reset_hold.input)
         nengo.Connection(bias_node, ramp_reset_hold.input,
                          transform=-cfg.mtr_ramp_reset_hold_transform)
 
         # Ramp integrator go signal (stops ramp integrator when <= 0.5)
-        ramp_int_go = cfg.make_thresh_ens_net()
+        ramp_int_go = cfg.make_thresh_ens_net(n_neurons=n_neurons_ramp)
         nengo.Connection(bias_node, ramp_int_go.input)
         nengo.Connection(ramp_init_hold.output, ramp_int_go.input,
                          transform=-20)
@@ -35,12 +37,12 @@ def Ramp_Signal_Network(net=None, net_label='RAMP SIGNAL'):
                          transform=-10)
 
         # Ramp integrator stop signal (inverse of ramp integrator go signal)
-        ramp_int_stop = cfg.make_thresh_ens_net()
+        ramp_int_stop = cfg.make_thresh_ens_net(n_neurons=n_neurons_ramp)
         nengo.Connection(bias_node, ramp_int_stop.input)
         nengo.Connection(ramp_int_go.output, ramp_int_stop.input, transform=-2)
 
         # Ramp integrator
-        ramp_integrator = nengo.Ensemble(cfg.n_neurons_cconv, 1, radius=1.1)
+        ramp_integrator = nengo.Ensemble(n_neurons_ramp*3, 1, radius=1.1)
         nengo.Connection(ramp_int_stop.output, ramp_integrator.neurons,
                          transform=[[-5]] * ramp_integrator.n_neurons)
 
@@ -51,7 +53,7 @@ def Ramp_Signal_Network(net=None, net_label='RAMP SIGNAL'):
 
         # Ramp integrator reset circuitry -- Works like the difference gate in
         # the gated integrator
-        ramp_int_reset = nengo.Ensemble(cfg.n_neurons_cconv, 1, radius=1.1)
+        ramp_int_reset = nengo.Ensemble(n_neurons_ramp*3, 1, radius=1.1)
         nengo.Connection(ramp_integrator, ramp_int_reset)
         nengo.Connection(ramp_int_reset, ramp_integrator,
                          transform=-10, synapse=cfg.mtr_ramp_synapse)
@@ -60,13 +62,13 @@ def Ramp_Signal_Network(net=None, net_label='RAMP SIGNAL'):
 
         # Ramp end reset signal generator -- Signals when the ramp integrator
         # reaches the top of the ramp slope.
-        ramp_reset_thresh = cfg.make_thresh_ens_net(0.91, radius=1.1)
+        ramp_reset_thresh = cfg.make_thresh_ens_net(0.91, radius=1.1, n_neurons=n_neurons_ramp)
         nengo.Connection(ramp_reset_thresh.output, ramp_reset_hold.input,
                          transform=5.0, synapse=0.015)
 
         # Misc ramp threshold outputs
-        ramp_75 = cfg.make_thresh_ens_net(0.75)
-        ramp_50_75 = cfg.make_thresh_ens_net(0.5)
+        ramp_75 = cfg.make_thresh_ens_net(0.75, n_neurons=n_neurons_ramp)
+        ramp_50_75 = cfg.make_thresh_ens_net(0.5, n_neurons=n_neurons_ramp)
 
         nengo.Connection(ramp_integrator, ramp_reset_thresh.input)
         nengo.Connection(ramp_integrator, ramp_75.input)

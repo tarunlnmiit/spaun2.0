@@ -17,6 +17,7 @@ class RewardEvaluationSystem(Module):
                  add_to_container=None):
         super(RewardEvaluationSystem, self).__init__(label, seed,
                                                      add_to_container)
+        self.n_neurons_reward = cfg.tg_n_neurons_reward
         self.init_module()
 
     @with_self
@@ -29,7 +30,7 @@ class RewardEvaluationSystem(Module):
         # ------------------- Action detection network ------------------------
         # Translates action semantic pointers (from production system) into
         # array of 1's and 0's
-        self.actions = cfg.make_thresh_ens_net(num_ens=num_actions)
+        self.actions = cfg.make_thresh_ens_net(num_ens=num_actions, n_neurons=self.n_neurons_reward)
         self.action_input = self.actions.input
         self.bg_utilities_input = nengo.Node(size_in=num_actions)
         self.vis_sp_input = nengo.Node(size_in=vocab.sp_dim)
@@ -38,7 +39,7 @@ class RewardEvaluationSystem(Module):
         # Translates visual input into reward yes/no signals
         # Note: Output of reward_detect is inverted
         num_reward_sps = len(vocab.reward.keys)
-        self.reward_detect = cfg.make_thresh_ens_net(num_ens=num_reward_sps)
+        self.reward_detect = cfg.make_thresh_ens_net(num_ens=num_reward_sps, n_neurons=self.n_neurons_reward)
         nengo.Connection(bias_node, self.reward_detect.input,
                          transform=np.ones(num_reward_sps)[:, None])
         nengo.Connection(self.vis_sp_input, self.reward_detect.input,
@@ -47,14 +48,14 @@ class RewardEvaluationSystem(Module):
         # Calculate positive reward values
         self.pos_reward_vals = \
             cfg.make_ens_array(n_ensembles=num_actions, ens_dimensions=1,
-                               radius=1)
+                               radius=1, n_neurons=self.n_neurons_reward)
         nengo.Connection(self.actions.output, self.pos_reward_vals.input,
                          transform=np.eye(num_actions))
 
         # Calculate negative reward values
         self.neg_reward_vals = \
             cfg.make_ens_array(n_ensembles=num_actions, ens_dimensions=1,
-                               radius=1)
+                               radius=1, n_neurons=self.n_neurons_reward)
         nengo.Connection(self.actions.output, self.neg_reward_vals.input,
                          transform=np.ones(num_actions) - np.eye(num_actions))
 
@@ -74,7 +75,7 @@ class RewardEvaluationSystem(Module):
         # Calculate the utility bias needed (so that the rewards don't send
         # the utilities to +inf, -inf)
         self.util_vals = \
-            EnsembleArray(100, num_actions, encoders=Choice([[1]]),
+            EnsembleArray(self.n_neurons_reward * 2, num_actions, encoders=Choice([[1]]),
                           intercepts=Exponential(0.15, cfg.learn_util_min, 1))
         nengo.Connection(self.reward_detect.output, self.util_vals.input,
                          transform=-np.ones((num_actions, 2)))

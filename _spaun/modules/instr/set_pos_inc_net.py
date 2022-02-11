@@ -5,6 +5,8 @@ from ...configurator import cfg
 
 def Settable_Pos_Inc_Network(pos_vocab, pos_reset_key, inc_sp, num_vocab,
                              net=None, net_label='POS INC', **args):
+    setpos_args = dict(args)
+    n_neurons_setpos = setpos_args.get('n_neurons', cfg.n_neurons_ens)
     if net is None:
         net = nengo.Network(label=net_label)
 
@@ -15,7 +17,7 @@ def Settable_Pos_Inc_Network(pos_vocab, pos_reset_key, inc_sp, num_vocab,
         net.num_2_pos_am = \
             cfg.make_assoc_mem(num_vocab.vectors[:num_pos_vecs, :],
                                pos_vocab.vectors, threshold=0.35,
-                               inhibitable=True)
+                               inhibitable=True, n_neurons=n_neurons_setpos)
 
         # Memory block to store POS vector
         net.pos_mb = cfg.make_mem_block(
@@ -29,7 +31,7 @@ def Settable_Pos_Inc_Network(pos_vocab, pos_reset_key, inc_sp, num_vocab,
 
         # Set up pos_mb output gate and inhibit am is active
         # Note: taking output from mem1 for faster performance switching
-        net.pos_mb_out = cfg.make_spa_ens_array_gate(threshold_gate=False)
+        net.pos_mb_out = cfg.make_spa_ens_array_gate(threshold_gate=False, n_neurons=n_neurons_setpos)
         nengo.Connection(net.pos_mb.mem1.output, net.pos_mb_out.input)
         nengo.Connection(net.num_2_pos_am.output_utilities,
                          net.pos_mb_out.gate,

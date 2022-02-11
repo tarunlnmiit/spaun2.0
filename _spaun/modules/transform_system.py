@@ -17,16 +17,17 @@ class TransformationSystem(Module):
                  add_to_container=None):
         super(TransformationSystem, self).__init__(label, seed,
                                                    add_to_container)
+        self.n_neurons_trfm = cfg.tg_n_neurons_trfm
         self.init_module()
 
     @with_self
     def init_module(self):
         # ----- Input and output selectors ----- #
-        self.select_in_a = cfg.make_selector(3)
+        self.select_in_a = cfg.make_selector(3, n_neurons=self.n_neurons_trfm)
         self.select_in_b = cfg.make_selector(6, represent_identity=True,
-                                             identity_radius=2.0)
+                                             identity_radius=2.0, n_neurons=self.n_neurons_trfm)
         self.select_out = cfg.make_selector(8, represent_identity=True,
-                                            identity_radius=2.0)
+                                            identity_radius=2.0, n_neurons=self.n_neurons_trfm)
 
         # ----- Mem inputs and outputs ----- #
         self.frm_mb1 = nengo.Node(size_in=vocab.sp_dim)
@@ -49,8 +50,8 @@ class TransformationSystem(Module):
         nengo.Connection(self.frm_mb1, self.select_out.input2)
 
         # ----- Normalization networks for inputs to CConv and Compare ----- #
-        self.norm_a = cfg.make_norm_net(norm_error_per_dimension=0.00075)
-        self.norm_b = cfg.make_norm_net(norm_error_per_dimension=0.00075)
+        self.norm_a = cfg.make_norm_net(norm_error_per_dimension=0.00075, n_neurons_norm=self.n_neurons_trfm, n_neurons_prod=self.n_neurons_trfm*3)
+        self.norm_b = cfg.make_norm_net(norm_error_per_dimension=0.00075, n_neurons_norm=self.n_neurons_trfm, n_neurons_prod=self.n_neurons_trfm*3)
         # Note: Normalization is disabled for certain dec phases - see below
 
         nengo.Connection(self.select_in_a.output, self.norm_a.input)
@@ -59,7 +60,7 @@ class TransformationSystem(Module):
         #       over unity values from WM?
 
         # ----- Cir conv 1 ----- #
-        self.cconv1 = cfg.make_cir_conv(input_magnitude=cfg.trans_cconv_radius)
+        self.cconv1 = cfg.make_cir_conv(input_magnitude=cfg.trans_cconv_radius, n_neurons=self.n_neurons_trfm*3)
 
         nengo.Connection(self.norm_a.output, self.cconv1.A)
         nengo.Connection(self.norm_b.output, self.cconv1.B)
@@ -72,7 +73,8 @@ class TransformationSystem(Module):
                                                      vocab.pos, vocab.pos1,
                                                      vocab.max_enum_list_pos,
                                                      vocab.ps_action_learn,
-                                                     vocab.ps_cmp)
+                                                     vocab.ps_cmp,
+                                                     n_neurons=self.n_neurons_trfm)
 
         nengo.Connection(self.frm_mb1, self.am_trfms.frm_mb1, synapse=None)
         nengo.Connection(self.frm_mb2, self.am_trfms.frm_mb2, synapse=None)
@@ -98,7 +100,7 @@ class TransformationSystem(Module):
             Compare(vocab.main, output_no_match=True,
                     threshold_outputs=cfg.trans_cmp_threshold,
                     dot_product_input_magnitude=cfg.get_optimal_sp_radius(),
-                    label="Compare")
+                    label="Compare", n_neurons_prod=self.n_neurons_trfm*4, n_neurons_threshold_ens=self.n_neurons_trfm)
 
         # nengo.Connection(self.norm_a.output, self.compare.inputA,
         #                  transform=1.5)
@@ -109,11 +111,11 @@ class TransformationSystem(Module):
         nengo.Connection(self.norm_b.output, self.compare.inputB,
                          transform=1.0)
 
-        self.compare_match_thresh = cfg.make_thresh_ens_net()
+        self.compare_match_thresh = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_trfm)
         nengo.Connection(self.compare.output, self.compare_match_thresh.input,
                          transform=[vocab.main['MATCH'].v])
 
-        self.compare_gate_sig_gen = cfg.make_thresh_ens_net()
+        self.compare_gate_sig_gen = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_trfm)
         nengo.Connection(self.compare_match_thresh.output,
                          self.compare_gate_sig_gen.input, synapse=0.005,
                          transform=5)

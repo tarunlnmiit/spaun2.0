@@ -14,6 +14,7 @@ class WorkingMemory(Module):
     def __init__(self, label="Working Memory", seed=None,
                  add_to_container=None):
         super(WorkingMemory, self).__init__(label, seed, add_to_container)
+        self.n_neurons_wm = cfg.tg_n_neurons_wm
         self.init_module()
 
     @with_self
@@ -21,15 +22,15 @@ class WorkingMemory(Module):
         self.bias_node = nengo.Node(1)
 
         # Common gate signal
-        self.wm_gate = cfg.make_thresh_ens_net(0.25)
+        self.wm_gate = cfg.make_thresh_ens_net(0.25, n_neurons=self.n_neurons_wm)
         nengo.Connection(self.bias_node, self.wm_gate.input, transform=1.2)
 
         # Memory input selector
         self.select_in = cfg.make_selector(
-            2, default_sel=0, make_ens_func=cfg.make_spa_ens_array)
+            2, default_sel=0, make_ens_func=cfg.make_spa_ens_array, n_neurons=self.n_neurons_wm)
 
         # Gate signal selector
-        self.select_gate = Selector(cfg.n_neurons_ens, dimensions=1,
+        self.select_gate = Selector(self.n_neurons_wm, dimensions=1,
                                     num_items=2, make_ens_func=nengo.Ensemble,
                                     gate_gain=10, default_sel=0,
                                     threshold_sel_in=True)
@@ -42,17 +43,17 @@ class WorkingMemory(Module):
         self.num0_bias_node = nengo.Node(vocab.main.parse('POS1*ZER').v,
                                          label="POS1*ZER")
 
-        self.gate_sig_bias = cfg.make_thresh_ens_net(label='Gate Sig Bias')
+        self.gate_sig_bias = cfg.make_thresh_ens_net(label='Gate Sig Bias', n_neurons=self.n_neurons_wm)
         # Bias the -1.5 neg_atn during decoding phase (when there is no input)
         # nengo.Connection(self.gate_sig_bias.output, self.select_gate.input0)
 
-        self.cnt_gate_sig = cfg.make_thresh_ens_net(0.5, label='Cnt Gate Sig')
+        self.cnt_gate_sig = cfg.make_thresh_ens_net(0.5, label='Cnt Gate Sig', n_neurons=self.n_neurons_wm)
         nengo.Connection(self.cnt_gate_sig.output, self.select_gate.input0,
                          transform=cfg.mb_gate_scale)
 
         # Memory block 1
         self.mb1_net = WM_Generic_Network(vocab.main, sp_add_matrix,
-                                          net_label="MB1")
+                                          net_label="MB1", n_neurons=self.n_neurons_wm)
         nengo.Connection(self.select_in.output, self.mb1_net.input,
                          synapse=None)
         nengo.Connection(self.select_gate.output, self.mb1_net.gate)
@@ -67,7 +68,7 @@ class WorkingMemory(Module):
 
         # Memory block 2
         self.mb2_net = WM_Generic_Network(vocab.main, sp_add_matrix,
-                                          net_label="MB2")
+                                          net_label="MB2", n_neurons=self.n_neurons_wm)
         nengo.Connection(self.select_in.output, self.mb2_net.input,
                          synapse=None)
         nengo.Connection(self.select_gate.output, self.mb2_net.gate)
@@ -82,7 +83,7 @@ class WorkingMemory(Module):
 
         # Memory block 3
         self.mb3_net = WM_Generic_Network(vocab.main, sp_add_matrix,
-                                          net_label="MB3")
+                                          net_label="MB3", n_neurons=self.n_neurons_wm)
         nengo.Connection(self.select_in.output, self.mb3_net.input,
                          synapse=None)
         nengo.Connection(self.select_gate.output, self.mb3_net.gate)
@@ -96,7 +97,7 @@ class WorkingMemory(Module):
         self.mb3 = self.mb3_net.output
 
         # Memory block Ave (MBAve)
-        self.mbave_net = WM_Averaging_Network(vocab.main)
+        self.mbave_net = WM_Averaging_Network(vocab.main, n_neurons=self.n_neurons_wm)
         self.mbave = self.mbave_net.output
 
         # Define network inputs and outputs
@@ -228,7 +229,7 @@ class WorkingMemory(Module):
                 #        positive semantic pointer value)
                 # --> Maximum of 5 semantic pointer additions per thresholded
                 #     ensemble
-                mb1_no_gate_thresh_ens1 = cfg.make_thresh_ens_net()
+                mb1_no_gate_thresh_ens1 = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_wm)
                 mb1_no_gate_sp_vecs1 = \
                     vocab.main.parse('QAP+QAK+TRANS1+TRANS2+CNT0').v
                 nengo.Connection(p_net.ps.state, mb1_no_gate_thresh_ens1.input,
@@ -237,7 +238,7 @@ class WorkingMemory(Module):
                                  self.mb1_net.gate,
                                  transform=cfg.mb_neg_gate_scale)
 
-                mb1_no_gate_thresh_ens2 = cfg.make_thresh_ens_net()
+                mb1_no_gate_thresh_ens2 = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_wm)
                 mb1_no_gate_sp_vecs2 = \
                     vocab.main.parse('X+L').v
                 nengo.Connection(p_net.ps.task, mb1_no_gate_thresh_ens2.input,
@@ -246,7 +247,7 @@ class WorkingMemory(Module):
                                  self.mb1_net.gate,
                                  transform=cfg.mb_neg_gate_scale)
 
-                mb1_no_reset_thresh_ens = cfg.make_thresh_ens_net()
+                mb1_no_reset_thresh_ens = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_wm)
                 mb1_no_reset_sp_vecs = \
                     vocab.main.parse('QAP+QAK+TRANS1+CNT0+CNT1').v
                 nengo.Connection(p_net.ps.state, mb1_no_reset_thresh_ens.input,
@@ -272,7 +273,7 @@ class WorkingMemory(Module):
 
             # ###### MB2 ########
             with self:
-                mb2_no_gate_thresh_ens = cfg.make_thresh_ens_net()
+                mb2_no_gate_thresh_ens = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_wm)
                 mb2_no_gate_sp_vecs = \
                     vocab.main.parse('X+TRANS0+TRANS2+CNT1+L').v
                 nengo.Connection(p_net.ps.state, mb2_no_gate_thresh_ens.input,
@@ -283,7 +284,7 @@ class WorkingMemory(Module):
                                  self.mb2_net.gate,
                                  transform=cfg.mb_neg_gate_scale)
 
-                mb2_no_reset_thresh_ens = cfg.make_thresh_ens_net()
+                mb2_no_reset_thresh_ens = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_wm)
                 mb2_no_reset_sp_vecs = \
                     vocab.main.parse('TRANS2+CNT1+TRANSC').v
                 # mb2_no_reset_sp_vecs = \
@@ -310,7 +311,7 @@ class WorkingMemory(Module):
 
             # ###### MB3 ########
             with self:
-                mb3_no_gate_thresh_ens = cfg.make_thresh_ens_net()
+                mb3_no_gate_thresh_ens = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_wm)
                 mb3_no_gate_sp_vecs = \
                     vocab.main.parse('X+QAP+QAK+TRANS0+TRANS1+L').v
                 nengo.Connection(p_net.ps.state, mb3_no_gate_thresh_ens.input,
@@ -321,7 +322,7 @@ class WorkingMemory(Module):
                                  self.mb3_net.gate,
                                  transform=cfg.mb_neg_gate_scale)
 
-                mb3_no_reset_thresh_ens = cfg.make_thresh_ens_net()
+                mb3_no_reset_thresh_ens = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_wm)
                 mb3_no_reset_sp_vecs = vocab.main.parse('CNT1+TRANSC').v
                 nengo.Connection(p_net.ps.state, mb3_no_reset_thresh_ens.input,
                                  transform=[mb3_no_reset_sp_vecs])
@@ -347,7 +348,7 @@ class WorkingMemory(Module):
 
             # ###### MBAVe ########
             with self:
-                mbave_no_gate_thresh_ens = cfg.make_thresh_ens_net()
+                mbave_no_gate_thresh_ens = cfg.make_thresh_ens_net(n_neurons=self.n_neurons_wm)
                 mbave_no_gate_sp_vecs = \
                     vocab.main.parse('X+QAP+QAK+TRANS0+L').v
                 nengo.Connection(p_net.ps.state,
